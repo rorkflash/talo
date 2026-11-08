@@ -1,0 +1,4 @@
+{
+  "baseline": {"path": "fixtures/tests/before.json"},
+  "current": {"path": "fixtures/tests/after.json"}
+}

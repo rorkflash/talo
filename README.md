@@ -2,7 +2,7 @@
 
 Local decision and execution service for coding harnesses.
 
-> **Status: design stage.** This repository holds the V1 proposal and no implementation yet. Nothing can be installed or run, and every command, module name and fixture path below describes the planned interface. See the [service design](docs/Talo_Service_Design.md) for the full proposal.
+> **Status: skeleton.** This repository holds the V1 proposal and a project skeleton: the core contracts, CLI entry point and test fixtures exist, but modules and decision backends are not implemented yet. Commands below describe the planned interface unless noted under [Development](#development). See the [service design](docs/Talo_Service_Design.md) for the full proposal.
 
 ## Why Talo
 
@@ -56,22 +56,25 @@ Exact comparisons run through deterministic modules, which keep working when the
 
 ## Architecture
 
-V1 is one Python daemon per OS user, starting on macOS. A CLI and a thin MCP stdio adapter send the same versioned requests over a user-only Unix socket.
+The CLI and a thin MCP stdio adapter call one shared Python core with the same versioned requests. They call it in-process at first; a per-user daemon on a Unix socket arrives with the local model, which is what it exists to share.
 
 ```mermaid
 flowchart TD
-    C["talo CLI"] --> D["Local daemon"]
+    C["talo CLI"] --> D["Core (in-process, later daemon)"]
     M["MCP stdio adapter"] --> D
     D --> R["Resolve workspace and module"]
     R --> E["Execute pipeline"]
-    E --> F["Parse and filter"]
-    E --> L["Local decision model"]
+    E --> F["Exact operators: parse, filter, project, group"]
+    E --> P["Decision profile"]
+    P --> B["Decision backend"]
+    B --> BL["Local checkpoint"]
+    B --> BA["Hosted API (opt-in)"]
     F --> S["Workspace results"]
-    L --> S
+    P --> S
 ```
 
-- **Daemon:** owns the module registry, workspace access, model lifetime and results.
-- **Model:** one pinned local checkpoint, loaded on the first semantic call and shared across clients, so normal operation can run offline. Laya is the first adapter to evaluate; its accuracy, memory use and latency are still open measurements.
+- **Core and daemon:** the core owns the module registry, workspace access and results. The daemon adds model lifetime and a bounded inference queue.
+- **Decision profiles and backends:** profiles define what is asked and how answers are validated; backends define which model answers. Backends are `fake` (deterministic tests), `api` (a hosted model, opt-in per workspace because data leaves the machine) and `local` (a pinned on-machine checkpoint, Laya first). Thresholds are calibrated per profile, backend and model revision.
 - **Workspaces:** each client session is bound to a configured root. Input paths and result references resolve only within that workspace.
 - **Storage:** SQLite for module versions and run metadata, per-workspace files for larger results. Results expire after a configurable retention period.
 
@@ -124,14 +127,48 @@ V1 can register declarative pipelines over built-in operators automatically. Nat
 
 | Milestone | Demonstration that it works |
 |---|---|
-| 1. Exact processing | The same paired test reports give the same IDs and counts through CLI and MCP, and a different workspace cannot resolve the reference |
-| 2. Local decisions | Routing and multi-select run on the reference machine, with checkpoint, peak RAM, cold-start time and warm latency recorded |
+| 1. Exact processing | The same paired test reports give the same IDs and counts through CLI and MCP, and a different workspace cannot resolve the reference. `tests.diff` reads synthetic JSON and JUnit XML |
+| 2a. Decision profiles | Route, triage and select-many run against the fake backend and an opt-in API backend, with labelled sets and tuned thresholds |
+| 2b. Local decisions | The local backend and the daemon land together, with checkpoint, peak RAM, cold-start time and warm latency recorded |
 | 3. Reuse across harnesses | One harness registers a declarative module and a second discovers and runs it |
-| 4. End-to-end comparison | Held-out tasks replayed three ways: normal harness, exact modules, and exact modules plus the local model |
+| 4. End-to-end comparison | Held-out tasks replayed four ways: normal harness, exact modules, exact modules plus the local model, and exact modules plus the API model |
 
-A decision profile is enabled by default only if it stays within an agreed quality tolerance and reduces total harness token use.
+A decision profile is enabled by default only if it stays within an agreed quality tolerance and reduces total harness token use. Decision-backend tokens and cost are reported separately from main-model tokens.
 
 The first implementation ticket is `tests.diff`, with two synthetic JSON reports, a comparison manifest and expected transitions, exposed through both clients.
+
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.12 or later (the repo pins 3.14).
+
+```bash
+uv sync
+```
+
+```bash
+uv run pytest
+```
+
+```bash
+uv run ruff check .
+```
+
+`uv run talo modules list` works today. Other commands return a typed `not_implemented` error. The `tests.diff` golden test is marked as an expected failure until the module is implemented.
+
+Layout:
+
+```
+src/talo/
+  core/          # envelope, typed errors, input references, workspace, result store, manifest
+  operators/     # exact steps: parse, filter, project, group
+  modules/       # built-in modules, e.g. tests_diff
+  decisions/     # profiles, backends (fake, api, local), calibration
+  runtime/       # daemon, arrives with the local backend
+  cli.py
+  mcp_server.py
+fixtures/tests/  # synthetic reports, comparison manifest, expected transitions
+tests/
+```
 
 ## License
 
