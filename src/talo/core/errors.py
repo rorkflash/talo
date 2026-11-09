@@ -27,6 +27,12 @@ class UnknownModuleError(TaloError):
     code = "unknown_module"
 
 
+class UnknownModelError(TaloError):
+    """A decision model name that the models config does not define."""
+
+    code = "unknown_model"
+
+
 class UnknownReferenceError(TaloError):
     """The reference is malformed, expired, or belongs to another workspace."""
 

@@ -153,7 +153,15 @@ uv run pytest
 uv run ruff check .
 ```
 
-`uv run talo modules list` works today. Other commands return a typed `not_implemented` error. The `tests.diff` golden test is marked as an expected failure until the module is implemented.
+`uv run talo modules list` and `uv run talo models list` work today. Other commands return a typed `not_implemented` error.
+
+Decision models are named entries in a models file. Copy [models.example.toml](models.example.toml) to `~/.config/talo/models.toml`, or point `TALO_MODELS_FILE` at it. Environment variables pick among the defined names:
+
+```bash
+TALO_DECISION_MODEL=small-llm TALO_DECISION_MODEL_SELECT_MANY=haiku uv run talo models list
+```
+
+`TALO_DECISION_MODEL` sets the default for every profile and `TALO_DECISION_MODEL_<PROFILE>` overrides one profile. A remote (`api`) model is still refused unless the workspace allows remote decisions. The `tests.diff` golden test is marked as an expected failure until the module is implemented.
 
 Layout:
 

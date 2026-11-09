@@ -1,0 +1,37 @@
+# Talo decision models.
+#
+# Copy to ~/.config/talo/models.toml (or $XDG_CONFIG_HOME/talo/models.toml),
+# or point TALO_MODELS_FILE at another file.
+#
+# Environment variables choose among the names defined here:
+#   TALO_DECISION_MODEL=small-llm            default for every profile
+#   TALO_DECISION_MODEL_SELECT_MANY=haiku    one profile only
+# They never define a model, and a remote (api) model is still refused
+# unless the workspace allows remote decisions.
+
+[models.laya-en]
+backend = "local"
+adapter = "laya"
+checkpoint = "convaiinnovations/laya"
+revision = "<pinned commit>"
+
+[models.small-llm]
+backend = "local"
+adapter = "mlx"
+checkpoint = "<repo of the chosen small model>"
+revision = "<pinned commit>"
+
+[models.haiku]
+backend = "api"
+provider = "anthropic"
+model = "claude-haiku-5-5"
+effort = "low"
+
+# Scripted answers by candidate ID, for development without any model.
+[models.dev-fake]
+backend = "fake"
+answers = {}
+
+[profiles]
+default = "laya-en"
+select_many = "haiku"

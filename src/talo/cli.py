@@ -7,6 +7,12 @@ from collections.abc import Sequence
 
 from talo import __version__
 from talo.core.errors import NotImplementedYetError, TaloError
+from talo.decisions.models import (
+    PROFILE_IDS,
+    load_models_config_from_env,
+    models_file_path,
+    select_model,
+)
 from talo.modules import BUILTIN_MANIFESTS
 
 
@@ -30,6 +36,10 @@ def build_parser() -> argparse.ArgumentParser:
     modules_sub = modules.add_subparsers(dest="modules_command", required=True)
     modules_sub.add_parser("list", help="list registered modules")
 
+    models = sub.add_parser("models", help="inspect configured decision models")
+    models_sub = models.add_subparsers(dest="models_command", required=True)
+    models_sub.add_parser("list", help="list models and which one each profile selects")
+
     return parser
 
 
@@ -38,11 +48,29 @@ def _emit(payload: object) -> None:
     sys.stdout.write("\n")
 
 
+def _models_list() -> dict:
+    config = load_models_config_from_env()
+    profiles: dict[str, dict] = {}
+    for profile in PROFILE_IDS:
+        try:
+            profiles[profile] = select_model(profile, config).model_dump(exclude={"profile"})
+        except TaloError as error:
+            profiles[profile] = {"error": error.code, "message": error.message}
+    return {
+        "models_file": str(models_file_path()),
+        "models": {name: spec.model_dump(mode="json") for name, spec in config.models.items()},
+        "profiles": profiles,
+    }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "modules" and args.modules_command == "list":
             _emit([m.model_dump(mode="json") for m in BUILTIN_MANIFESTS.values()])
+            return 0
+        if args.command == "models" and args.models_command == "list":
+            _emit(_models_list())
             return 0
         raise NotImplementedYetError(f"'talo {args.command}' is not implemented yet")
     except TaloError as error:

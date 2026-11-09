@@ -148,6 +148,18 @@ A `JudgeRequest` carries the instruction, one candidate’s ID and text, and the
 
 **Calibration is per backend.** A threshold tuned on one model does not transfer to another. Calibration is stored per profile version, backend and model revision. A profile refuses to run on a backend that has no calibration for it.
 
+**Model selection.** Decision models are named entries in a TOML models file (`~/.config/talo/models.toml`, or the path in `TALO_MODELS_FILE`; see `models.example.toml`). Each entry names a backend (`local`, `api` or `fake`) and what that backend needs: adapter, checkpoint and pinned revision for a local model, provider, model and effort for an API model. Environment variables only choose among the defined names. The first match wins:
+
+1. an explicit `--model` override on the request
+2. `TALO_DECISION_MODEL_<PROFILE>`, for example `TALO_DECISION_MODEL_SELECT_MANY`
+3. `TALO_DECISION_MODEL`
+4. `[profiles].<profile>` in the models file
+5. `[profiles].default` in the models file
+
+A name the file does not define is a typed `unknown_model` error. Selection never bypasses policy: a remote model chosen through the environment is still refused in a workspace that has not allowed remote decisions. The environment is read by the process that builds the backend, which is the CLI while running in-process and `talo serve` once the daemon exists; daemon clients switch models per request with the override. Building a backend loads nothing; a local checkpoint loads on its first judgment, and V1 keeps at most one local checkpoint resident. API keys stay out of the models file and are resolved by the provider SDK.
+
+Candidates for the first evaluation: Laya (a 421M-parameter encoder decision model that answers typed questions rather than generating text), one small generative model run through MLX or llama.cpp, and a small hosted model such as Claude Haiku 5.5. All are scored against the same labelled sets in milestone 2a before any is enabled by default.
+
 ## 5. How harnesses learn and extend Talo
 
 Ship two short instruction files with the service. Setup places a short pointer in each participating harness’s supported project instructions. Keep detailed module schemas and authoring guidance available on demand.
