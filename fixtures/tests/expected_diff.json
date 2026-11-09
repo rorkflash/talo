@@ -1,0 +1,7 @@
+[
+  {"id": "parse.empty_input", "before": "failed", "after": "passed", "finding": "fixed"},
+  {"id": "parse.bad_header", "before": "failed", "after": "failed", "finding": "still_failing"},
+  {"id": "export.csv", "before": "passed", "after": "failed", "finding": "regression"},
+  {"id": "export.unicode", "before": "failed", "after": "skipped", "finding": "skipped_unverified"},
+  {"id": "export.roundtrip", "before": "failed", "after": null, "finding": "missing_unverified"}
+]

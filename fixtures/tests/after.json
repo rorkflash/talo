@@ -1,0 +1,6 @@
+[
+  {"id": "parse.empty_input", "outcome": "passed"},
+  {"id": "parse.bad_header", "outcome": "failed"},
+  {"id": "export.csv", "outcome": "failed"},
+  {"id": "export.unicode", "outcome": "skipped"}
+]
